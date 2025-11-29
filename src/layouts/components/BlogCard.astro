@@ -2,6 +2,7 @@
 import config from "@/config/config.json";
 import dateFormat from "@/lib/utils/dateFormat";
 import { humanize, plainify, slugify } from "@/lib/utils/textConverter";
+import { pinyin as pinyinLib } from "pinyin";
 import { FaRegFolder, FaRegUserCircle } from "react-icons/fa";
 import ImageMod from "./ImageMod.astro";
 
@@ -11,6 +12,14 @@ const {
 }: { summary_length: number; blog_folder: string } = config.settings;
 const { data } = Astro.props;
 const { title, image, date, author, categories } = data.data;
+// compute a url-friendly slug: prefer provided slug, otherwise generate pinyin slug from title
+const itemSlug = data.data.slug
+  ? String(data.data.slug)
+  : title
+  ? slugify(
+      pinyinLib(title, { style: pinyinLib.STYLE_NORMAL }).flat().join("-")
+    )
+  : data.id;
 ---
 
 <div class="bg-body dark:bg-darkmode-body">
@@ -27,7 +36,7 @@ const { title, image, date, author, categories } = data.data;
     )
   }
   <h4 class="mb-3">
-    <a href={`/${blog_folder}/${data.id}`}>
+    <a href={`/${blog_folder}/${itemSlug}`}>
       {title}
     </a>
   </h4>
@@ -52,7 +61,7 @@ const { title, image, date, author, categories } = data.data;
     {date && <li class="inline-block">{dateFormat(date)}</li>}
   </ul>
   <p class="mb-6">{plainify(data.body?.slice(0, Number(summary_length)))}</p>
-  <a class="btn btn-outline-primary btn-sm" href={`/${blog_folder}/${data.id}`}>
+  <a class="btn btn-outline-primary btn-sm" href={`/${blog_folder}/${itemSlug}`}>
     read more
   </a>
 </div>

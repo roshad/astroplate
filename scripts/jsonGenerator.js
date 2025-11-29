@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
+import { pinyin as pinyinLib } from "pinyin";
+import { slug as ghSlug } from "github-slugger";
 
 const CONTENT_DEPTH = 2;
 const JSON_FOLDER = "./.json";
@@ -22,12 +24,31 @@ const getData = (folder, groupDepth) => {
       const file = fs.readFileSync(filepath, "utf-8");
       const { data, content } = matter(file);
       const pathParts = filepath.split(path.sep);
-      const slug =
-        data.slug ||
-        pathParts
-          .slice(CONTENT_DEPTH)
-          .join("/")
-          .replace(/\.[^/.]+$/, "");
+      // Prefer explicit frontmatter slug; otherwise try to generate a slug
+      // Use pinyin(title) fallback when title exists so filenames with
+      // non-latin characters become URL-safe slugs.
+      let slugVal = data.slug || null;
+      if (!slugVal) {
+        // slice from CONTENT_DEPTH to keep folder (e.g. blog/filename)
+        const parts = pathParts.slice(CONTENT_DEPTH);
+        const folderPath = parts.slice(0, parts.length - 1).join("/");
+        const fileName = parts[parts.length - 1].replace(/\.[^/.]+$/, "");
+
+        if (data.title) {
+          // convert title to pinyin and then slugify
+          const titlePinyin = pinyinLib(data.title, {
+            style: pinyinLib.STYLE_NORMAL,
+          })
+            .flat()
+            .join("-");
+          const titleSlug = ghSlug(titlePinyin);
+          slugVal = folderPath ? `${folderPath}/${titleSlug}` : titleSlug;
+        } else {
+          // fallback to original filename (may be non-ASCII)
+          slugVal = parts.join("/");
+        }
+      }
+      const slug = slugVal;
       const group = pathParts[groupDepth];
 
       return {
