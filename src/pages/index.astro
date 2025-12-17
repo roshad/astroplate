@@ -1,44 +1,64 @@
 ---
-import Base from "@/layouts/Base.astro";
 import BlogCard from "@/components/BlogCard.astro";
 import Pagination from "@/components/Pagination.astro";
 import config from "@/config/config.json";
-import { getSinglePage } from "@/lib/contentParser.astro";
+import Base from "@/layouts/Base.astro";
+import { getListPage, getSinglePage } from "@/lib/contentParser.astro";
+import { getAllTaxonomy, getTaxonomy } from "@/lib/taxonomyParser.astro";
 import { sortByDate } from "@/lib/utils/sortFunctions";
+import PageHeader from "@/partials/PageHeader.astro";
+import PostSidebar from "@/partials/PostSidebar.astro";
 
 const BLOG_FOLDER = "blog";
+
+const postIndex = await getListPage(BLOG_FOLDER, "-index");
+if (postIndex.data.draft) {
+  return Astro.redirect("/404");
+}
 const posts = await getSinglePage(BLOG_FOLDER);
+const allCategories = await getAllTaxonomy(BLOG_FOLDER, "categories");
+const categories = await getTaxonomy(BLOG_FOLDER, "categories");
+const tags = await getTaxonomy(BLOG_FOLDER, "tags");
 const sortedPosts = sortByDate(posts);
-const itemsPerPage = config.settings.pagination;
-const totalPages: number = Math.ceil(sortedPosts.length / itemsPerPage);
-const currentPage = 1;
-const startIndex = (currentPage - 1) * itemsPerPage;
-const paginatedPosts = sortedPosts.slice(startIndex, startIndex + itemsPerPage);
+const totalPages: number = Math.ceil(posts.length / config.settings.pagination);
+const currentPosts = sortedPosts.slice(0, config.settings.pagination);
 ---
 
-<Base>
-  <!-- Blog Posts -->
+<Base
+  title={postIndex.data.title}
+  meta_title={postIndex.data.meta_title}
+  image={postIndex.data.image}
+  description={postIndex.data.description}
+>
+  <PageHeader title={postIndex?.data.title} />
   <section class="section">
     <div class="container">
-      <div class="row">
-        <div class="col-12 mb-8 text-center">
-          <h1 class="mb-4 text-h3 lg:text-h1">Blog</h1>
-        </div>
-      </div>
-      <div class="row">
-        {paginatedPosts.map((post) => (
-          <div class="mb-14 md:col-6">
-            <BlogCard data={post} />
+      <div class="row gx-5">
+        <!-- blog posts -->
+        <div class="lg:col-8">
+          <div class="row">
+            {
+              currentPosts.map((post) => (
+                <div class="mb-14 md:col-6">
+                  <BlogCard data={post} />
+                </div>
+              ))
+            }
           </div>
-        ))}
-      </div>
-      {totalPages > 1 && (
-        <Pagination
-          section={BLOG_FOLDER}
-          currentPage={currentPage}
-          totalPages={totalPages}
+          <Pagination
+            section={BLOG_FOLDER}
+            currentPage={1}
+            totalPages={totalPages}
+          />
+        </div>
+
+        <!-- sidebar -->
+        <PostSidebar
+          categories={categories}
+          tags={tags}
+          allCategories={allCategories}
         />
-      )}
+      </div>
     </div>
   </section>
 </Base>
